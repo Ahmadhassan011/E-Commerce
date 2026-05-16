@@ -23,6 +23,11 @@ const corsOptions = {
 };
 app.use(express.urlencoded({ extended: false }));
 app.use(cors(corsOptions));
+
+app.get('/health', (req: Request, res: Response) => {
+  res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
+});
+
 app.use(authenticateToken);
 app.get('/', (req: Request, res: Response) => {
   res.status(200).json({ message: 'Success' });

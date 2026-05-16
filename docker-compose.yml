@@ -1,54 +1,135 @@
-services:
-  frontend:
-    build:
-      context: ./Client
-      dockerfile: Dockerfile
-    environment:
-      BACKEND_URL: ${BACKEND_URL}
-      AUTH_KEY: ${AUTH_KEY}
-      JWT_KEY: ${JWT_KEY}
-      NEXT_PUBLIC_FRONTEND_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_FRONTEND_GOOGLE_CLIENT_ID}
-      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
-      NEXT_PUBLIC_DOMAIN: ${NEXT_PUBLIC_DOMAIN}
-    ports:
-      - "3000:3000"
+# =============================================================================
+# Enhanced docker-compose.yml for Local Development
+# Supports frontend, backend, database with healthchecks, networks, and .env
+# =============================================================================
 
+services:
+  # ──────────────────────────────────────────────
+  # PostgreSQL Database
+  # ──────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: ecommerce-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASS:-postgres}
+      POSTGRES_DB: ${DB_NAME:-ecommerce}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-ecommerce}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+
+  # ──────────────────────────────────────────────
+  # Express Backend API
+  # ──────────────────────────────────────────────
   backend:
     build:
       context: ./Server
       dockerfile: Dockerfile
+    container_name: ecommerce-backend
+    restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      FRONTEND_SERVER_ORIGIN: ${FRONTEND_SERVER_ORIGIN}
-      DB_USER: ${DB_USER}
-      DB_PASS: ${DB_PASS}
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
-      DB_NAME: ${DB_NAME}
-      SMTP_USER: ${SMTP_USER}
-      SMTP_SUPPORT: ${SMTP_SUPPORT}
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_SENDERNAME: ${SMTP_SENDERNAME}
-      SMTP_PASS: ${SMTP_PASS}
-      JWT_ENCRYPTION_KEY: ${JWT_ENCRYPTION_KEY}
-      JWT_AUTH_KEY: ${JWT_AUTH_KEY}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
-      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY}
+      # Override DB_HOST to use the service name from docker network
+      DB_HOST: db
+      DB_PORT: 5432
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3500
     ports:
-      - "3500:3500"
+      - "${BACKEND_PORT:-3500}:3500"
+    networks:
+      - ecommerce-network
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3500/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  db:
-    image: postgres:latest
+  # ──────────────────────────────────────────────
+  # Next.js Frontend
+  # ──────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./Client
+      dockerfile: Dockerfile
+      args:
+        BACKEND_URL: ${BACKEND_URL:-http://localhost:3500}
+        AUTH_KEY: ${AUTH_KEY}
+        JWT_KEY: ${JWT_KEY}
+        NEXT_PUBLIC_FRONTEND_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_FRONTEND_GOOGLE_CLIENT_ID}
+        NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
+        NEXT_PUBLIC_DOMAIN: ${NEXT_PUBLIC_DOMAIN:-http://localhost:3000}
+    container_name: ecommerce-frontend
+    restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASS}
-      POSTGRES_DB: ${DB_NAME}
-    volumes:
-      - db_data:/var/lib/postgresql/data
+      # Override PORT to prevent backend's PORT=3500 from leaking via .env
+      PORT: 3000
     ports:
-      - "5432:5432"
+      - "${FRONTEND_PORT:-3000}:3000"
+    networks:
+      - ecommerce-network
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+# ──────────────────────────────────────────────
+# Volumes
+# ──────────────────────────────────────────────
 volumes:
   db_data:
+    driver: local
+
+# ──────────────────────────────────────────────
+# Networks
+# ──────────────────────────────────────────────
+networks:
+  ecommerce-network:
+    driver: bridge
+    name: ecommerce-network

@@ -3,7 +3,8 @@
 # dependencies
 Client/node_modules
 Server/node_modules
-# Ignore the .env file in the root directory
+# Ignore local .env files (root + subdirectories)
+.env
 Client/.env
 Server/.env
 # Ignore other env files

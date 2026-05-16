@@ -1,60 +1,78 @@
-FROM ubuntu AS build
-#install requirements
-RUN apt-get update
-RUN apt-get upgrade -y
-RUN apt-get install -y nodejs
-RUN apt-get install -y npm
-RUN npm install -g typescript
-#change directory
-WORKDIR /backend
-#install npm modules
-COPY package.json package.json
-COPY package-lock.json package-lock.json
-RUN npm install
-#copy everything
-COPY . .
-#typescript build
-RUN tsc -p .
+# =============================================================================
+# BACKEND DOCKERFILE - Express.js / TypeScript API
+# Production-grade multi-stage build with Alpine, non-root user, and healthcheck
+# =============================================================================
 
+# Stage 1: Build
+FROM node:21-alpine AS build
 
-FROM node:21-alpine AS runner
+LABEL stage=build
+LABEL description="Build stage for Express backend"
+
 RUN apk add --no-cache libc6-compat
-WORKDIR /backend
 
-COPY --from=build /backend /backend/
-#Environment Variables --start
-ARG FRONTEND_SERVER_ORIGIN
-ENV FRONTEND_SERVER_ORIGIN=${FRONTEND_SERVER_ORIGIN}
-ARG DB_USER
-ENV DB_USER=${DB_USER}
-ARG DB_PASS
-ENV DB_PASS=${DB_PASS}
-ARG DB_HOST
-ENV DB_HOST=${DB_HOST}
-ARG DB_PORT
-ENV DB_PORT=${DB_PORT}
-ARG DB_NAME
-ENV DB_NAME=${DB_NAME}
-ARG SMTP_USER
-ENV SMTP_USER=${SMTP_USER}
-ARG SMTP_SUPPORT
-ENV SMTP_SUPPORT=${SMTP_SUPPORT}
-ARG SMTP_HOST
-ENV SMTP_HOST=${SMTP_HOST}
-ARG SMTP_SENDERNAME
-ENV SMTP_SENDERNAME=${SMTP_HOST}
-ARG SMTP_PASS
-ENV SMTP_PASS=${SMTP_PASS}
-ARG JWT_ENCRYPTION_KEY
-ENV JWT_ENCRYPTION_KEY=${JWT_ENCRYPTION_KEY}
-ARG JWT_AUTH_KEY
-ENV JWT_AUTH_KEY=${JWT_AUTH_KEY}
-ARG GOOGLE_CLIENT_ID
-ENV GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-ARG GOOGLE_CLIENT_SECRET
-ENV GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-ARG STRIPE_PUBLISHABLE_KEY
-ENV STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
-#--end
+WORKDIR /app
+
+# Copy dependency manifests first (layer caching optimization)
+COPY package.json package-lock.json ./
+
+# Install ALL dependencies (dev + prod for TypeScript compilation)
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Compile TypeScript to JavaScript
+RUN npx tsc -p .
+
+# Prune dev dependencies to reduce final image size
+RUN npm prune --omit=dev
+
+
+# Stage 2: Production Runner
+FROM node:21-alpine AS runner
+
+LABEL maintainer="devops@ecommerce.com"
+LABEL description="Production Express.js backend container"
+
+# Security: create non-root user
+RUN addgroup --system --gid 1001 appgroup && \
+    adduser --system --uid 1001 appuser --ingroup appgroup
+
+# Install only runtime OS dependencies
+RUN apk add --no-cache tini
+
+WORKDIR /app
+
+# Copy only production artifacts from build stage
+COPY --from=build --chown=appuser:appgroup /app/node_modules ./node_modules
+COPY --from=build --chown=appuser:appgroup /app/package.json ./
+COPY --from=build --chown=appuser:appgroup /app/index.js ./
+COPY --from=build --chown=appuser:appgroup /app/routes.js ./
+COPY --from=build --chown=appuser:appgroup /app/routes ./routes
+COPY --from=build --chown=appuser:appgroup /app/controller ./controller
+COPY --from=build --chown=appuser:appgroup /app/data ./data
+COPY --from=build --chown=appuser:appgroup /app/middleware ./middleware
+COPY --from=build --chown=appuser:appgroup /app/utils ./utils
+COPY --from=build --chown=appuser:appgroup /app/validators ./validators
+
+# Security: run as non-root
+USER appuser
+
+# Environment variables (set at runtime, not build time for secrets)
+ENV NODE_ENV=production \
+    PORT=3500 \
+    NODE_OPTIONS="--max-http-header-size=16384"
+
+# Healthcheck to verify the API is responding
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3500/health
+
+# Expose API port
 EXPOSE 3500
-ENTRYPOINT [ "node","index.js" ]
+
+# Use tini as init for proper signal handling
+ENTRYPOINT ["/sbin/tini", "--"]
+
+# Start the server
+CMD ["node", "index.js"]

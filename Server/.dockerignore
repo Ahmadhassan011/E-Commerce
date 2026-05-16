@@ -1,7 +1,65 @@
+# =============================================================================
+# Backend .dockerignore
+# Prevents unnecessary files from being sent to Docker build context
+# =============================================================================
+
+# Dependencies
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Version control
+.git
+.gitignore
+.github/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Docker
 Dockerfile
 .dockerignore
-node_modules
-npm-debug.log
+docker-compose*
+
+# Documentation
 README.md
-.env
-.git
+CHANGELOG.md
+LICENSE
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+SECURITY.md
+
+# Tests
+coverage/
+__tests__/
+*.test.ts
+*.spec.ts
+*.test.js
+
+# TypeScript source (compiled JS is used)
+# Keep: index.ts and tsconfig.json for build
+# Remove source after build in the Dockerfile stages
+
+# Logs
+logs/
+*.log
+
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Misc
+*.md
+.docker
