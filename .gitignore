@@ -40,3 +40,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# compiled JS output (TypeScript)
+Server/**/*.js
+
+# Lab tasks (not part of the app)
+tasks/
+*.pdf
