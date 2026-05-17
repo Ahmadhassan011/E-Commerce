@@ -28,10 +28,11 @@ app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
-app.use(authenticateToken);
 app.get('/', (req: Request, res: Response) => {
-  res.status(200).json({ message: 'Success' });
+  res.status(200).json({ message: 'E-Commerce API', version: '1.0.0' });
 });
+
+app.use(authenticateToken);
 app.use('/api', routes);
 // Function to start the server
 const startServer = async () => {// Ensure the database connection is established
