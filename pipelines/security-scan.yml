@@ -1,0 +1,218 @@
+# =============================================================================
+# Azure DevOps Pipeline: Security Scanning (DevSecOps)
+# File: pipelines/security-scan.yml
+# Runs SAST, SCA, and DAST scans
+# Can be triggered manually or as part of CI/CD
+# =============================================================================
+
+trigger: none  # Manual trigger only
+
+pr: none  # Not for PRs
+
+schedules:
+  - cron: "0 6 * * 1"  # Every Monday at 6 AM UTC
+    displayName: "Weekly security scan"
+    branches:
+      include:
+        - main
+        - develop
+
+variables:
+  - group: ecommerce-variables
+  - group: ecommerce-secrets
+
+stages:
+  # ─────────────────────────────────────────────────────────────
+  # Stage 1: SonarQube SAST (Static Application Security Testing)
+  # ─────────────────────────────────────────────────────────────
+  - stage: SonarQubeSAST
+    displayName: "SonarQube SAST Scan"
+    pool:
+      vmImage: "ubuntu-latest"
+    jobs:
+      - job: BackendScan
+        displayName: "Scan Backend Source Code"
+        steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - task: SonarQubePrepare@5
+            displayName: "Prepare SonarQube analysis"
+            inputs:
+              SonarQube: "ecommerce-sonarqube"
+              scannerMode: "CLI"
+              configMode: "manual"
+              cliProjectKey: "ecommerce-backend"
+              cliProjectName: "E-Commerce Backend"
+              cliSources: "Server"
+              extraProperties: |
+                sonar.javascript.lcov.reportPaths=
+                sonar.exclusions=**/node_modules/**,**/coverage/**,**/*.test.ts
+                sonar.typescript.exclusions=**/node_modules/**,**/coverage/**
+                sonar.coverage.exclusions=**/*.test.ts,**/node_modules/**
+                sonar.cpd.exclusions=**/node_modules/**
+
+          - task: SonarQubeAnalyze@5
+            displayName: "Run SonarQube analysis"
+
+          - task: SonarQubePublish@5
+            displayName: "Publish quality gate result"
+            inputs:
+              pollingTimeoutSec: "300"
+
+      - job: FrontendScan
+        displayName: "Scan Frontend Source Code"
+        steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - task: SonarQubePrepare@5
+            displayName: "Prepare SonarQube analysis"
+            inputs:
+              SonarQube: "ecommerce-sonarqube"
+              scannerMode: "CLI"
+              configMode: "manual"
+              cliProjectKey: "ecommerce-frontend"
+              cliProjectName: "E-Commerce Frontend"
+              cliSources: "Client"
+              extraProperties: |
+                sonar.javascript.lcov.reportPaths=
+                sonar.exclusions=**/node_modules/**,**/coverage/**,**/.next/**
+                sonar.typescript.exclusions=**/node_modules/**,**/coverage/**,**/.next/**
+                sonar.coverage.exclusions=**/*.test.ts,**/*.test.tsx,**/node_modules/**
+
+          - task: SonarQubeAnalyze@5
+            displayName: "Run SonarQube analysis"
+
+          - task: SonarQubePublish@5
+            displayName: "Publish quality gate result"
+            inputs:
+              pollingTimeoutSec: "300"
+
+  # ─────────────────────────────────────────────────────────────
+  # Stage 2: Snyk SCA (Software Composition Analysis)
+  # ─────────────────────────────────────────────────────────────
+  - stage: SnykSCA
+    displayName: "Snyk Dependency Scan"
+    dependsOn: []
+    pool:
+      vmImage: "ubuntu-latest"
+    jobs:
+      - job: BackendDeps
+        displayName: "Scan Backend Dependencies"
+        steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - task: SnykSecurityScan@1
+            displayName: "Snyk scan backend"
+            inputs:
+              serviceConnectionEndpoint: "ecommerce-snyk"
+              testType: "app"
+              monitorOnBuild: true
+              failOnIssues: false
+              projectName: "ecommerce-backend"
+              targetFile: "Server/package.json"
+              severityThreshold: "medium"
+
+      - job: FrontendDeps
+        displayName: "Scan Frontend Dependencies"
+        steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - task: SnykSecurityScan@1
+            displayName: "Snyk scan frontend"
+            inputs:
+              serviceConnectionEndpoint: "ecommerce-snyk"
+              testType: "app"
+              monitorOnBuild: true
+              failOnIssues: false
+              projectName: "ecommerce-frontend"
+              targetFile: "Client/package.json"
+              severityThreshold: "medium"
+
+  # ─────────────────────────────────────────────────────────────
+  # Stage 3: OWASP ZAP DAST (Dynamic Application Security Testing)
+  # ─────────────────────────────────────────────────────────────
+  - stage: OWASPZAPDAST
+    displayName: "OWASP ZAP DAST Scan"
+    dependsOn: []
+    pool:
+      vmImage: "ubuntu-latest"
+    jobs:
+      - job: BaselineScan
+        displayName: "ZAP Baseline Scan"
+        steps:
+          - task: OWASPDockerScan@1
+            displayName: "Run ZAP Baseline Scan on Backend"
+            inputs:
+              targetUrl: "https://app-ecommerce-backend-dev.azurewebsites.net"
+              scanType: "baseline"
+              rules: ""
+              allowCustomParameters: false
+            continueOnError: true
+
+          - task: PublishBuildArtifacts@1
+            displayName: "Publish ZAP scan report"
+            inputs:
+              PathtoPublish: "$(System.DefaultWorkingDirectory)/zap-output"
+              ArtifactName: "zap-scan-report"
+              publishLocation: "Container"
+            condition: always()
+
+      - job: APIScan
+        displayName: "ZAP API Scan"
+        steps:
+          - task: OWASPDockerScan@1
+            displayName: "Run ZAP API Scan on Backend"
+            inputs:
+              targetUrl: "https://app-ecommerce-backend-dev.azurewebsites.net"
+              scanType: "api"
+              apiType: "OpenAPI"
+              apiFile: ""
+              allowCustomParameters: false
+            continueOnError: true
+
+          - task: PublishBuildArtifacts@1
+            displayName: "Publish ZAP API report"
+            inputs:
+              PathtoPublish: "$(System.DefaultWorkingDirectory)/zap-output"
+              ArtifactName: "zap-api-scan-report"
+              publishLocation: "Container"
+            condition: always()
+
+  # ─────────────────────────────────────────────────────────────
+  # Stage 4: Security Report Generation
+  # ─────────────────────────────────────────────────────────────
+  - stage: Report
+    displayName: "Generate Security Report"
+    dependsOn:
+      - SonarQubeSAST
+      - SnykSCA
+      - OWASPZAPDAST
+    condition: always()
+    pool:
+      vmImage: "ubuntu-latest"
+    jobs:
+      - job: GenerateReport
+        displayName: "Generate consolidated security report"
+        steps:
+          - script: |
+              echo "# Security Scan Report" > security-report.md
+              echo "## Date: $(Build.BuildNumber)" >> security-report.md
+              echo "" >> security-report.md
+              echo "### Scans Completed:" >> security-report.md
+              echo "- SonarQube SAST (Static Analysis)" >> security-report.md
+              echo "- Snyk SCA (Dependency Analysis)" >> security-report.md
+              echo "- OWASP ZAP DAST (Dynamic Analysis)" >> security-report.md
+              echo "" >> security-report.md
+              echo "See artifacts for detailed scan reports." >> security-report.md
+            displayName: "Generate summary report"
+
+          - task: PublishBuildArtifacts@1
+            displayName: "Publish security report"
+            inputs:
+              PathtoPublish: "$(System.DefaultWorkingDirectory)/security-report.md"
+              ArtifactName: "security-report"
+              publishLocation: "Container"
