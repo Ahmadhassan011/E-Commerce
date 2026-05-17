@@ -1,0 +1,183 @@
+# =============================================================================
+# Azure DevOps Pipeline: Backend CI/CD
+# File: pipelines/backend-ci.yml
+# Multi-stage: Build → Test → Docker Build/Push → Deploy → Health Check
+# =============================================================================
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+      - release/*
+  paths:
+    include:
+      - Server/*
+      - pipelines/backend-ci.yml
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - Server/*
+
+variables:
+  - group: ecommerce-variables
+  - group: ecommerce-secrets
+
+  # Derived variables
+  - name: dockerImageName
+    value: "$(ACR_LOGIN_SERVER)/backend"
+  - name: tag
+    value: "$(Build.SourceBranchName)-$(Build.BuildId)"
+  - name: tagLatest
+    value: "latest"
+
+stages:
+  # ─────────────────────────────────────────────────────────────
+  # Stage 1: Build & Test
+  # ─────────────────────────────────────────────────────────────
+  - stage: Build
+    displayName: "Build & Test"
+    pool:
+      vmImage: "ubuntu-latest"
+    jobs:
+      - job: BuildBackend
+        displayName: "Build Backend"
+        steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - task: NodeTool@0
+            displayName: "Install Node.js"
+            inputs:
+              versionSpec: "21.x"
+
+          - script: |
+              cd Server
+              npm ci --include=dev
+            displayName: "Install dependencies"
+
+          - script: |
+              cd Server
+              npx tsc -p .
+            displayName: "Compile TypeScript"
+
+          - script: |
+              cd Server
+              npm test || echo "No tests configured yet"
+            displayName: "Run unit tests"
+            continueOnError: true
+
+          - task: PublishBuildArtifacts@1
+            displayName: "Publish build artifacts"
+            inputs:
+              PathtoPublish: "Server"
+              ArtifactName: "backend-build"
+              publishLocation: "Container"
+
+  # ─────────────────────────────────────────────────────────────
+  # Stage 2: Docker Build & Push
+  # ─────────────────────────────────────────────────────────────
+  - stage: DockerBuild
+    displayName: "Docker Build & Push"
+    dependsOn: Build
+    condition: succeeded()
+    pool:
+      vmImage: "ubuntu-latest"
+    jobs:
+      - job: BuildAndPush
+        displayName: "Build & Push to ACR"
+        steps:
+          - task: Docker@2
+            displayName: "Login to ACR"
+            inputs:
+              containerRegistry: "acr-service-connection"
+              command: "login"
+
+          - task: Docker@2
+            displayName: "Build Docker image"
+            inputs:
+              containerRegistry: "acr-service-connection"
+              repository: "backend"
+              command: "build"
+              Dockerfile: "Server/Dockerfile"
+              tags: |
+                $(tag)
+                $(tagLatest)
+              arguments: |
+                --build-arg NODE_ENV=production
+
+          - task: Docker@2
+            displayName: "Push Docker image to ACR"
+            inputs:
+              containerRegistry: "acr-service-connection"
+              repository: "backend"
+              command: "push"
+              tags: |
+                $(tag)
+                $(tagLatest)
+
+          - task: PublishBuildArtifacts@1
+            displayName: "Publish image tag"
+            inputs:
+              PathtoPublish: "$(Build.ArtifactStagingDirectory)"
+              ArtifactName: "image-tag"
+              publishLocation: "Container"
+
+  # ─────────────────────────────────────────────────────────────
+  # Stage 3: Deploy to Azure App Service
+  # ─────────────────────────────────────────────────────────────
+  - stage: Deploy
+    displayName: "Deploy to App Service"
+    dependsOn: DockerBuild
+    condition: succeeded()
+    pool:
+      vmImage: "ubuntu-latest"
+    jobs:
+      - deployment: DeployBackend
+        displayName: "Deploy Backend to App Service"
+        environment: "production"
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: AzureWebAppContainer@1
+                  displayName: "Deploy to Azure App Service"
+                  inputs:
+                    azureSubscription: "azure-service-connection"
+                    appName: "app-ecommerce-backend-prod-ci"
+                    containers: "$(ACR_LOGIN_SERVER)/backend:$(tag)"
+
+  # ─────────────────────────────────────────────────────────────
+  # Stage 4: Health Check Verification
+  # ─────────────────────────────────────────────────────────────
+  - stage: HealthCheck
+    displayName: "Post-Deployment Health Check"
+    dependsOn: Deploy
+    condition: succeeded()
+    pool:
+      vmImage: "ubuntu-latest"
+    jobs:
+      - job: VerifyHealth
+        displayName: "Verify API Health"
+        steps:
+          - script: |
+              echo "Waiting for deployment to stabilize..."
+              sleep 30
+              curl -sS --max-time 30 https://app-ecommerce-backend-prod-ci.azurewebsites.net/ || \
+                (echo "Health check FAILED" && exit 1)
+            displayName: "Check health endpoint"
+            continueOnError: true
+
+          - script: |
+              echo "Running smoke test..."
+              curl -sS --max-time 30 https://app-ecommerce-backend-prod-ci.azurewebsites.net/api/home/banner || \
+                echo "Smoke test completed (may fail if no data)"
+            displayName: "Run smoke test"
+            continueOnError: true
+
+

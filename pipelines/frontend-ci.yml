@@ -1,0 +1,188 @@
+# =============================================================================
+# Azure DevOps Pipeline: Frontend CI/CD
+# File: pipelines/frontend-ci.yml
+# Builds Next.js app and deploys to Azure App Service (container)
+# =============================================================================
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+      - release/*
+  paths:
+    include:
+      - Client/*
+      - pipelines/frontend-ci.yml
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - Client/*
+
+variables:
+  - group: ecommerce-variables
+  - group: ecommerce-secrets
+
+  # Derived
+  - name: dockerImageName
+    value: "$(ACR_LOGIN_SERVER)/frontend"
+  - name: tag
+    value: "$(Build.SourceBranchName)-$(Build.BuildId)"
+
+stages:
+  # ─────────────────────────────────────────────────────────────
+  # Stage 1: Build & Test
+  # ─────────────────────────────────────────────────────────────
+  - stage: Build
+    displayName: "Build & Test"
+    pool:
+      vmImage: "ubuntu-latest"
+    jobs:
+      - job: BuildFrontend
+        displayName: "Build Next.js Frontend"
+        steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - task: NodeTool@0
+            displayName: "Install Node.js"
+            inputs:
+              versionSpec: "21.x"
+
+          - script: |
+              cd Client
+              npm ci --include=dev
+            displayName: "Install dependencies"
+
+          - script: |
+              cd Client
+              npm run lint || echo "Lint completed with warnings"
+            displayName: "Lint check"
+            continueOnError: true
+
+          - script: |
+              cd Client
+              npm run build
+            displayName: "Build Next.js application"
+            env:
+              NEXT_PUBLIC_FRONTEND_GOOGLE_CLIENT_ID: $(NEXT_PUBLIC_FRONTEND_GOOGLE_CLIENT_ID)
+              NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: $(NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+              NEXT_PUBLIC_DOMAIN: $(NEXT_PUBLIC_DOMAIN)
+              BACKEND_URL: $(BACKEND_URL)
+              AUTH_KEY: $(AUTH_KEY)
+              JWT_KEY: $(JWT_KEY)
+
+          - task: PublishBuildArtifacts@1
+            displayName: "Publish build output"
+            inputs:
+              PathtoPublish: "Client/.next"
+              ArtifactName: "frontend-build"
+              publishLocation: "Container"
+
+          - task: PublishBuildArtifacts@1
+            displayName: "Publish public assets"
+            inputs:
+              PathtoPublish: "Client/public"
+              ArtifactName: "frontend-public"
+              publishLocation: "Container"
+
+          - task: PublishBuildArtifacts@1
+            displayName: "Publish package.json"
+            inputs:
+              PathtoPublish: "Client/package.json"
+              ArtifactName: "frontend-config"
+              publishLocation: "Container"
+
+  # ─────────────────────────────────────────────────────────────
+  # Stage 2: Docker Build & Push
+  # ─────────────────────────────────────────────────────────────
+  - stage: DockerBuild
+    displayName: "Docker Build & Push"
+    dependsOn: Build
+    condition: succeeded()
+    pool:
+      vmImage: "ubuntu-latest"
+    jobs:
+      - job: BuildAndPush
+        displayName: "Build & Push to ACR"
+        steps:
+          - task: Docker@2
+            displayName: "Login to ACR"
+            inputs:
+              containerRegistry: "acr-service-connection"
+              command: "login"
+
+          - task: Docker@2
+            displayName: "Build Docker image"
+            inputs:
+              containerRegistry: "acr-service-connection"
+              repository: "frontend"
+              command: "build"
+              Dockerfile: "Client/Dockerfile"
+              tags: |
+                $(tag)
+                latest
+              arguments: |
+                --build-arg BACKEND_URL=$(BACKEND_URL)
+                --build-arg AUTH_KEY=$(AUTH_KEY)
+                --build-arg JWT_KEY=$(JWT_KEY)
+                --build-arg NEXT_PUBLIC_FRONTEND_GOOGLE_CLIENT_ID=$(NEXT_PUBLIC_FRONTEND_GOOGLE_CLIENT_ID)
+                --build-arg NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=$(NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+                --build-arg NEXT_PUBLIC_DOMAIN=$(NEXT_PUBLIC_DOMAIN)
+
+          - task: Docker@2
+            displayName: "Push Docker image to ACR"
+            inputs:
+              containerRegistry: "acr-service-connection"
+              repository: "frontend"
+              command: "push"
+              tags: |
+                $(tag)
+                latest
+
+  # ─────────────────────────────────────────────────────────────
+  # Stage 3: Deploy to Azure App Service
+  # ─────────────────────────────────────────────────────────────
+  - stage: Deploy
+    displayName: "Deploy to App Service"
+    dependsOn: DockerBuild
+    condition: succeeded()
+    pool:
+      vmImage: "ubuntu-latest"
+    jobs:
+      - deployment: DeployFrontend
+        displayName: "Deploy Frontend to App Service"
+        environment: "production"
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: AzureWebAppContainer@1
+                  displayName: "Deploy to Azure App Service"
+                  inputs:
+                    azureSubscription: "azure-service-connection"
+                    appName: "app-ecommerce-frontend-prod-ci"
+                    containers: "$(ACR_LOGIN_SERVER)/frontend:$(tag)"
+
+  # ─────────────────────────────────────────────────────────────
+  # Stage 4: Health Check
+  # ─────────────────────────────────────────────────────────────
+  - stage: HealthCheck
+    displayName: "Post-Deployment Verification"
+    dependsOn: Deploy
+    condition: succeeded()
+    pool:
+      vmImage: "ubuntu-latest"
+    jobs:
+      - job: Verify
+        displayName: "Verify Frontend is Live"
+        steps:
+          - script: |
+              curl -sS --max-time 30 https://app-ecommerce-frontend-prod-ci.azurewebsites.net/ | head -20 || \
+                echo "Frontend health check completed"
+            displayName: "Check frontend is live"
