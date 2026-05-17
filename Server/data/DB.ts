@@ -23,6 +23,7 @@ const client = new Client({
   host: details.host,
   port: details.port,
   database: details.database,
+  ssl: true, // Enable SSL for Azure PostgreSQL
 });
 
 const connectDB = async () => {

@@ -152,8 +152,12 @@ Detailed environment configuration for both Client and Server can be found in th
 ![Mobile View](images/website-demo/mobile-view.png)
 
 <p align="center">
-  <img src="images/website-demo/showcase-1.png" width="45%" />
-  <img src="images/website-demo/showcase-2.png" width="45%" />
+  <img src="images/website-demo/showcase-1.png" width="45%" alt="Showcase 1" />
+  <img src="images/website-demo/showcase-2.png" width="45%" alt="Showcase 2" />
+</p>
+
+<p align="center">
+  <img src="images/website-demo/backend-live.png" width="90%" alt="Backend API Live" />
 </p>
 
 ---
