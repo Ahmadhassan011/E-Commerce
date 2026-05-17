@@ -1,151 +1,162 @@
-# eCommerce Website
+# E-Commerce Platform (PERN Stack)
 
-Welcome to the repository for our full stack eCommerce website built using the PERN stack (PostgreSQL, Express, React, Node.js). This project demonstrates a comprehensive online shopping experience with a variety of features and pages.
+A full-stack eCommerce solution built with the PERN stack (PostgreSQL, Express, React, Node.js). This project is containerized with Docker and features a robust CI/CD pipeline targeting Microsoft Azure.
 
-![Desktop](/website-demo-image/desktop.png)
-![Mobile](/website-demo-image/mobile.png)
-![Showcase1](/website-demo-image/1.png)
-![Showcase2](/website-demo-image/2.png)
-## Features
+---
 
-### eCommerce Features
-- **Categories & Subcategories:** Well-organized categories and subcategories for easy navigation.
-- **Products:** Detailed product pages with options for different sizes and colors.
-- **Payment Gateway:** Integrated with individual products and cart for secure transactions. ( Stripe )
-- **Wishlist:** Option to save favorite products.
-- **Special Deals:** Exclusive deals displayed on the homepage.
-- **Banners:** Eye-catching banners to highlight promotions.
-- **Responsive Design:** Modern and mobile-friendly layout.
-- **Quantity Purchase:** Ability to purchase multiple quantities of a product.
-- **Homepage Algorithms:** Various algorithms to display products dynamically on the homepage.
-- **Filtering & Sorting:** Advanced filtering and sorting options on search and category pages.
-- **JWT Session:** Secure user sessions with JWT.
-- **Encrypted Passwords:** Enhanced security with password encryption.
-- **OAuth Support:** Easy registration and sign-in with OAuth.
-- **Payment on Delivery:** Option to pay upon delivery.
-- **Order Tracking:** Track orders with a detailed orders page.
-- **Order Summary:** Comprehensive order summary page.
-- **Custom Checkout:** Tailored checkout experience.
-- **Review System:** Post, delete, and edit reviews with a dedicated reviews page.
-- **Dynamic Routing:** Smooth navigation with dynamic routing.
-- **Product Quickview:** Quickly view product details and add to cart or go to the product page.
-- **Active Review & Rating Calculation:** Backend will update variables required for algorithms to work properly, actively calculate rating's & frontend required parameters.
+## Live Environments
 
-### Other Pages
-- **Category Specific Page:** Detailed pages for each category.
-- **Subcategory Page:** Dedicated pages for subcategories.
-- **Blog:** Informative blog section.
-- **Contact Page:** Easy-to-use contact form.
-- **Services Page:** Overview of offered services.
-- **About Us:** Information about the company.
-- **Privacy Policy:** Details on data privacy.
-- **Secure Payment Page:** Information on secure payment methods.
-- **Terms and Conditions:** Detailed terms and conditions.
-- **Refund and Cancellation Policy:** Policies on refunds and cancellations.
+| Component | URL |
+|-----------|-----|
+| Frontend | [https://app-ecommerce-frontend-prod-ci.azurewebsites.net](https://app-ecommerce-frontend-prod-ci.azurewebsites.net) |
+| Backend API | [https://app-ecommerce-backend-prod-ci.azurewebsites.net](https://app-ecommerce-backend-prod-ci.azurewebsites.net) |
+| Container Registry | `acrecommerceprodci.azurecr.io` |
 
-## Installation
+---
 
-1. Clone the repository:
-   ```sh
-   git clone https://github.com/HarmanPreet-Singh-XYT/E-Commerce.git
-2. Navigate to the project directory:
-   ```sh
-   cd ecommerce-website
-3. Install dependencies for the server:
-   ```sh
-   cd Server & npm install
-4. Install dependencies for the client:
-   ```sh
-   cd ../Client & npm install
-5. Set up environment variables in a .env file for both server and client.
+## Table of Contents
+- [Key Features](#key-features)
+- [Tech Stack](#tech-stack)
+- [Lab Adaptation Highlights](#lab-adaptation-highlights)
+- [Local Development](#local-development)
+- [Docker Workflow](#docker-workflow)
+- [Azure Deployment & CI/CD](#azure-deployment--cicd)
+- [Environment Variables](#environment-variables)
+- [Screenshots](#screenshots)
 
-## Running the Application (Development)
+---
 
-1. Start the Server:
-   ```sh
-   cd Server & npm run dev
-2. Start the client:
-    ```sh
-   cd Client & npm run dev
+## Key Features
 
-## Setting Up PostgreSQL Tables
+- **Organized Catalog** — Categories and subcategories for seamless navigation.
+- **Product Customization** — Support for sizes, colors, and detailed product views.
+- **Secure Payments** — Integrated with Stripe for reliable transactions.
+- **Advanced Authentication** — JWT-based sessions and Google OAuth integration.
+- **Order Management** — Full lifecycle tracking from cart to confirmation.
+- **Interactive Reviews** — Robust product rating and review system.
+- **Responsive UI** — Mobile-first design for a consistent experience across devices.
+- **Performance Optimization** — Optimized with Next.js 14 and multi-stage Docker builds.
 
-1. Create a Database named 'ecommerce'.
-2. Restore the Database using ecommerce.sql with Given SQL File.
-3. Make sure PostgreSQL server is Running, Set up Environment Variables and done.
+---
 
-## Getting Started With Docker
-**Dockerfiles can be found for both Client and Server in their respective directories.**
-**These docker files can be run individually or together through docker compose.**
+## Tech Stack
 
-## Running Individually
+| Layer | Technologies |
+|-------|--------------|
+| Frontend | Next.js 14, React, TypeScript, Tailwind CSS |
+| Backend | Node.js, Express, TypeScript |
+| Database | PostgreSQL (Azure Flexible Server) |
+| Authentication | JWT, Google OAuth 2.0 |
+| Payments | Stripe API |
+| Infrastructure | Docker, Azure App Service |
+| CI/CD | Azure DevOps (YAML Pipelines) |
 
-1. Go to any directory whether it is Client or Server.
-2. Use Terminal and execute the following command to build and Get image for the following type:
-   ```sh
-   docker build -t ecommerce-client .
-      or
-   docker build -t ecommerce-server .
-3. These images then can be run through Docker Desktop or through terminal by following command:
-   ```sh
-   docker run -p 3000:3000 --name your-container-name -e BACKEND_URL=your_backend_url -e AUTH_KEY=your_auth_key -e JWT_KEY=your_jwt_key -e NEXT_PUBLIC_FRONTEND_GOOGLE_CLIENT_ID=your_google_client_id -e NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_stripe_key -e NEXT_PUBLIC_DOMAIN=your_domain ecommerce-client
-      or
-   docker run -p 3500:3500 --name your-container-name -e FRONTEND_SERVER_ORIGIN=your_frontend_server_origin -e DB_USER=your_db_user -e DB_PASS=your_db_pass -e DB_HOST=your_db_host -e DB_PORT=your_db_port -e DB_NAME=your_db_name -e SMTP_USER=your_smtp_user -e SMTP_SUPPORT=your_smtp_support -e SMTP_HOST=your_smtp_host -e SMTP_SENDERNAME=your_smtp_sendername -e SMTP_PASS=your_smtp_pass -e JWT_ENCRYPTION_KEY=your_jwt_encryption_key -e JWT_AUTH_KEY=your_jwt_auth_key -e GOOGLE_CLIENT_ID=your_google_client_id -e GOOGLE_CLIENT_SECRET=your_google_client_secret -e STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key ecommerce-server
-## Running Together with Docker Compose
-1. Go to root directory where docker-compose.yml exists.
-2. create a .env file with All the Environment Variables in it including for both Server and Client
-3. then Start docker-compose with the following command:
-   ```sh
+---
+
+## Lab Adaptation Highlights
+
+This project was adapted from a standard DevOps Lab requirement. Key adaptations include:
+
+- **Database Migration:** Switched from Azure SQL to PostgreSQL Flexible Server to maintain native application compatibility without code changes.
+- **Port Standardization:** Aligned backend ports to 3500 and frontend to 3000 (Next.js default).
+- **Naming Conventions:** Adopted the `<abbr>-ecommerce-<env>` pattern for all Azure resources.
+- **Next.js Integration:** Adapted standard React build steps for Next.js standalone output mode in Docker.
+
+---
+
+## Local Development
+
+### Prerequisites
+- Node.js 21+
+- PostgreSQL 16+
+- Docker and Docker Compose (Optional but recommended)
+
+### Setup
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/Ahmadhassan011/E-Commerce.git
+   cd E-Commerce
+   ```
+2. **Environment Setup:** Create a `.env` file in the root based on the [Environment Variables](#environment-variables) section.
+3. **Start with Docker Compose:**
+   ```bash
    docker compose up --watch
-**As the Compose also contains PostgreSQL server, you also need to connect to the PostgreSQL server and Restore the ecommerce.sql file into the ecommerce database to get all the following tables and product and site data.**
-**or**
-**Simply remove PostgreSQL service from the following docker-compose.yml file if you have your own PostgreSQL server running.**
-## Available Docker Images
-**There are two Following images available on Docker hub for Client and Server**
-1. Client Image:
-   ```sh
-   docker pull harmanpreet27/ecommerce-client
-2. Server Image:
-   ```sh
-   docker pull harmanpreet27/ecommerce-backend
-## Contributing
+   ```
+4. **Initialize Database:**
+   ```bash
+   docker compose exec db pg_restore -U postgres -d ecommerce /docker-entrypoint-initdb.d/ecommerce.sql
+   ```
 
-**We welcome contributions! Please fork the repository and submit a pull request.**
+---
+
+## Docker Workflow
+
+The project utilizes multi-stage Alpine-based Dockerfiles to ensure minimal image size and maximum security.
+
+- **Client:** Uses Next.js standalone output (Server-side rendering enabled).
+- **Server:** Compiled TypeScript source to optimized JavaScript.
+
+```bash
+# Manual Build
+./scripts/build.sh
+```
+
+---
+
+## Azure Deployment & CI/CD
+
+### Infrastructure Architecture
+![Azure Architecture](images/azure-architecture.png)
+
+### CI/CD Pipelines
+Two primary YAML pipelines are configured in Azure DevOps:
+1. **Backend CI:** Build → Scan → Push to ACR → Deploy to App Service.
+2. **Frontend CI:** Build → Smoke Test → Push to ACR → Deploy to App Service.
+
+---
+
+## Environment Variables
+
+Detailed environment configuration for both Client and Server can be found in the [Deployment Docs](docs/deployment.md) or the tables below.
+
+### Client
+| Variable | Purpose |
+|----------|---------|
+| `BACKEND_URL` | API endpoint for the backend |
+| `STRIPE_PUBLISHABLE_KEY` | Stripe public key for frontend |
+
+### Server
+| Variable | Purpose |
+|----------|---------|
+| `DB_HOST` / `DB_USER` / `DB_PASS` | Database credentials |
+| `JWT_KEY` | Secret for token signing |
+
+---
+
+## Screenshots
+
+### Azure Resource Group
+![Resource Group](images/resources.png)
+
+### Pipeline Execution
+![Pipeline Run](images/deployments/pipeline-successful-run.png)
+
+### Azure Container Registry
+<p align="center">
+  <img src="images/deployments/acr_backend.png" width="45%" alt="ACR Backend" />
+  <img src="images/deployments/acr_frontend.png" width="45%" alt="ACR Frontend" />
+</p>
+
+### Application Demo
+![Desktop View](images/website-demo/desktop-view.png)
+![Mobile View](images/website-demo/mobile-view.png)
+
+<p align="center">
+  <img src="images/website-demo/showcase-1.png" width="45%" />
+  <img src="images/website-demo/showcase-2.png" width="45%" />
+</p>
+
+---
 
 ## License
-
-**This project is licensed under the MIT License. See the LICENSE file for more details.**
-
-## Contact
-
-**For any questions or feedback, please contact us at harmanpreetsingh@programmer.net**
-
-## Environment Variables (Required before Starting)
-
-**For Client**
-
-- **BACKEND_URL** (Cors Requirement)
-- **AUTH_KEY** (Authorization key for Secure Frontend & Backend Communication)
-- **JWT_KEY** (JWT Key for Decryption and encryption)
-- **NEXT_PUBLIC_FRONTEND_GOOGLE_CLIENT_ID** (Google Client ID For OAuth)
-- **NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY** (Stripe Key for payment Gateway)
-- **NEXT_PUBLIC_DOMAIN** (**Optional*** Frontend URL)
-
-**For Server**
-
-- **FRONTEND_SERVER_ORIGIN** (Frontend Server URL)
-- **DB_USER** (Database UserName)
-- **DB_PASS** (Database Password)
-- **DB_HOST** (Database HostName)
-- **DB_PORT** (Database Port)
-- **DB_NAME** (Database Name)
-- **SMTP_USER** (SMTP UserName (email) )
-- **SMTP_SUPPORT** (Customer Support Email for Contact)
-- **SMTP_HOST** (SMTP HostName)
-- **SMTP_SENDERNAME** (SMTP Sender)
-- **SMTP_PASS** (SMTP Password)
-- **JWT_ENCRYPTION_KEY** (Key for secure encryption and decryption)
-- **JWT_AUTH_KEY** (Authorization key for Secure Frontend & Backend Communication)
-- **GOOGLE_CLIENT_ID** (Google Client ID for OAuth)
-- **GOOGLE_CLIENT_SECRET** (Google Client Secret for OAuth)
-- **STRIPE_PUBLISHABLE_KEY** (Stripe Key for Payment Gateway)
+Distributed under the MIT License. See `LICENSE` for more information.
