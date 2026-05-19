@@ -44,6 +44,11 @@ next-env.d.ts
 # compiled JS output (TypeScript)
 Server/**/*.js
 
-# Lab tasks (not part of the app)
-tasks/
-*.pdf
+# Local
+.local/
+
+# Terraform
+*.tfvars
+.terraform*
+*.tfstate
+*.tfstate.backup
