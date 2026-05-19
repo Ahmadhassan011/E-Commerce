@@ -147,7 +147,7 @@ stages:
           - task: OWASPDockerScan@1
             displayName: "Run ZAP Baseline Scan on Backend"
             inputs:
-              targetUrl: "https://app-ecommerce-backend-dev.azurewebsites.net"
+              targetUrl: "https://app-ecommerce-backend-prod-ci.azurewebsites.net"
               scanType: "baseline"
               rules: ""
               allowCustomParameters: false
@@ -167,7 +167,7 @@ stages:
           - task: OWASPDockerScan@1
             displayName: "Run ZAP API Scan on Backend"
             inputs:
-              targetUrl: "https://app-ecommerce-backend-dev.azurewebsites.net"
+              targetUrl: "https://app-ecommerce-backend-prod-ci.azurewebsites.net"
               scanType: "api"
               apiType: "OpenAPI"
               apiFile: ""

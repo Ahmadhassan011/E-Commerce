@@ -139,7 +139,8 @@ Detailed environment configuration for both Client and Server can be found in th
 ![Resource Group](images/resources.png)
 
 ### Pipeline Execution
-![Pipeline Run](images/deployments/pipeline-successful-run.png)
+![Pipeline Run 1](images/deployments/pipeline-successful-run.png)
+![Pipeline Run 2](images/deployments/pipelines_successful_run_02.png)
 
 ### Azure Container Registry
 <p align="center">

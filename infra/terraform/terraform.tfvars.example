@@ -1,0 +1,8 @@
+postgresql_admin_user     = "ecommerce_admin"
+postgresql_admin_password = "your-password-here"
+jwt_encryption_key        = "your-jwt-encryption-key"
+jwt_auth_key              = "your-jwt-auth-key"
+jwt_key                   = "your-jwt-key"
+stripe_secret_key         = "your-stripe-secret-key"
+smtp_password             = "your-smtp-password"
+google_client_secret      = "your-google-client-secret"
