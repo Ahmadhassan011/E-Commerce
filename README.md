@@ -17,6 +17,8 @@ A full-stack eCommerce solution built with the PERN stack (PostgreSQL, Express, 
 ## Table of Contents
 - [Key Features](#key-features)
 - [Tech Stack](#tech-stack)
+- [Infrastructure as Code (Terraform)](#infrastructure-as-code-terraform)
+- [Git Flow Strategy](#git-flow-strategy)
 - [Lab Adaptation Highlights](#lab-adaptation-highlights)
 - [Local Development](#local-development)
 - [Docker Workflow](#docker-workflow)
@@ -48,8 +50,27 @@ A full-stack eCommerce solution built with the PERN stack (PostgreSQL, Express, 
 | Database | PostgreSQL (Azure Flexible Server) |
 | Authentication | JWT, Google OAuth 2.0 |
 | Payments | Stripe API |
-| Infrastructure | Docker, Azure App Service |
+| Infrastructure | Terraform, Docker, Azure App Service |
 | CI/CD | Azure DevOps (YAML Pipelines) |
+
+---
+
+## Infrastructure as Code (Terraform)
+The infrastructure is fully provisioned using Terraform. All resources, including App Services, PostgreSQL Flexible Server, and Azure Key Vault, are defined in declarative configuration files to ensure repeatable, version-controlled deployments.
+
+- **Status Verification:** `terraform plan` confirms that the local configuration perfectly matches the deployed Azure environment.
+- **Traceability:** Resources are tagged with `ManagedBy: terraform` and `Project: ecommerce` for auditability.
+- **State Management:** Terraform state is securely stored in a remote Azure Blob Storage container.
+
+---
+
+## Git Flow Strategy
+The project follows a structured branching strategy to maintain code stability:
+- **main**: Source of truth for production code.
+- **develop**: Integration branch for features and testing.
+- **feature/**: Dedicated branches for individual tasks to maintain isolation before merging.
+
+![Git Branch Structure](images/git-branches.png)
 
 ---
 
